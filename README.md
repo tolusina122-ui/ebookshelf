@@ -94,24 +94,28 @@ The application has a complete payment processing flow with:
 - ✅ Order status management
 - ✅ Refund processing
 
-### Payment SDK Integration (Pending Credentials)
-The system is architected to support direct Mastercard and Visa API integration. To enable real payment processing:
+### Payment SDK Integration
 
-1. **Mastercard Integration**:
-   - Provide Mastercard Developer API credentials
-   - Update `processPayment()` function in `server/routes.ts`
-   - Implement Mastercard payment flow with provided sandbox/production keys
+✅ **Visa CyberSource Integration - ACTIVE**
+- Real transaction processing enabled via CyberSource REST API
+- Supports Visa credit/debit cards
+- Handles authorization and capture in single request
+- Environment: API Test (Sandbox) - switch to production URL when ready
 
-2. **Visa Integration**:
-   - Provide Visa Developer API credentials  
-   - Integrate Visa Direct or appropriate payment API
-   - Handle payment callbacks and status updates
+🔧 **Mastercard Integration - In Progress**
+- Will use CyberSource gateway (same as Visa)
+- Awaiting Mastercard sandbox credentials from `attached_assets/mastercard_sandbox/`
+- Integration ready, needs credential configuration
 
-3. **Google Pay & Apple Pay**:
-   - These work on top of card networks (Mastercard/Visa)
-   - Will be enabled automatically once card network integrations are complete
+✅ **Digital Wallets - Supported**
+- Google Pay and Apple Pay route through CyberSource
+- Frontend tokenization required for production
+- Currently processes as card-not-present transactions
 
-**Note**: Payment processing currently simulates successful transactions for development. Real payment integration will be added when API credentials are provided.
+**Security Note**: 
+- Store API credentials in Replit Secrets (not in code)
+- Use environment variables: `VISA_API_KEY`, `VISA_SHARED_SECRET`, `VISA_MERCHANT_ID`
+- Private key loaded from `attached_assets/` directory
 
 ## Database Schema
 
