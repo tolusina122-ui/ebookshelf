@@ -102,10 +102,12 @@ The application has a complete payment processing flow with:
 - Handles authorization and capture in single request
 - Environment: API Test (Sandbox) - switch to production URL when ready
 
-🔧 **Mastercard Integration - In Progress**
-- Will use CyberSource gateway (same as Visa)
-- Awaiting Mastercard sandbox credentials from `attached_assets/mastercard_sandbox/`
-- Integration ready, needs credential configuration
+✅ **Mastercard Gateway API Integration - ACTIVE**
+- Direct integration with Mastercard Payment Gateway Services
+- Supports Mastercard credit/debit cards
+- Uses HTTP Signature authentication with encryption certificate
+- Environment: Test Gateway (Sandbox) - switch to production when ready
+- Certificate-based secure communication
 
 ✅ **Digital Wallets - Supported**
 - Google Pay and Apple Pay route through CyberSource
@@ -114,8 +116,10 @@ The application has a complete payment processing flow with:
 
 **Security Note**: 
 - Store API credentials in Replit Secrets (not in code)
-- Use environment variables: `VISA_API_KEY`, `VISA_SHARED_SECRET`, `VISA_MERCHANT_ID`
-- Private key loaded from `attached_assets/` directory
+- **Visa**: Use environment variables `VISA_API_KEY`, `VISA_SHARED_SECRET`, `VISA_MERCHANT_ID`
+- **Mastercard**: Use environment variables `MASTERCARD_MERCHANT_ID`, `MASTERCARD_API_PASSWORD`, `MASTERCARD_GATEWAY_HOST`
+- Private keys and certificates loaded from `attached_assets/` directory
+- Never commit credentials to version control
 
 ## Database Schema
 
