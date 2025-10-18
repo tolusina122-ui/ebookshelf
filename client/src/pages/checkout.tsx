@@ -1,8 +1,8 @@
+
 import { useState } from "react";
 import { useCartStore } from "@/lib/cart-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -15,6 +15,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { Label } from "@/components/ui/label";
 
 const checkoutSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -69,7 +70,14 @@ export default function Checkout() {
           price: item.book.price,
         })),
       });
-      return response.json();
+      
+      const orderData = await response.json();
+      
+      if (orderData.error) {
+        throw new Error(orderData.message || "Payment processing failed");
+      }
+      
+      return orderData;
     },
     onSuccess: (data) => {
       setOrderId(data.order.id);
@@ -95,7 +103,7 @@ export default function Checkout() {
 
   if (items.length === 0 && !orderId) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-[80vh] flex items-center justify-center p-4">
         <div className="text-center space-y-4">
           <h2 className="text-2xl font-bold">Your cart is empty</h2>
           <Button onClick={() => setLocation("/")}>Continue Shopping</Button>
@@ -106,7 +114,7 @@ export default function Checkout() {
 
   if (orderId) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="min-h-[80vh] flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardHeader>
             <CardTitle className="text-center text-2xl">Order Complete!</CardTitle>
@@ -133,13 +141,13 @@ export default function Checkout() {
   }
 
   return (
-    <div className="min-h-screen bg-background py-6 md:py-12">
-      <div className="container px-4 md:px-6 max-w-6xl mx-auto">
-        <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Checkout</h1>
+    <div className="min-h-screen bg-background py-4 sm:py-8 lg:py-12">
+      <div className="container px-4 sm:px-6 max-w-7xl mx-auto">
+        <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6 lg:mb-8">Checkout</h1>
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {/* Checkout Form */}
-          <div className="lg:col-span-2 space-y-6 order-2 lg:order-1">
+          <div className="lg:col-span-2 order-2 lg:order-1">
             <Card>
               <CardHeader>
                 <CardTitle>Contact Information</CardTitle>
@@ -177,28 +185,28 @@ export default function Checkout() {
                               defaultValue={field.value}
                               className="grid grid-cols-1 gap-3"
                             >
-                              <div className="flex items-center space-x-2 border rounded-md p-4 hover-elevate">
+                              <div className="flex items-center space-x-3 border rounded-lg p-4 hover:bg-accent transition-colors cursor-pointer">
                                 <RadioGroupItem value="mastercard" id="mastercard" data-testid="radio-mastercard" />
                                 <Label htmlFor="mastercard" className="flex items-center gap-2 cursor-pointer flex-1">
                                   <CreditCard className="h-5 w-5" />
                                   <span>Mastercard</span>
                                 </Label>
                               </div>
-                              <div className="flex items-center space-x-2 border rounded-md p-4 hover-elevate">
+                              <div className="flex items-center space-x-3 border rounded-lg p-4 hover:bg-accent transition-colors cursor-pointer">
                                 <RadioGroupItem value="visa" id="visa" data-testid="radio-visa" />
                                 <Label htmlFor="visa" className="flex items-center gap-2 cursor-pointer flex-1">
                                   <CreditCard className="h-5 w-5" />
                                   <span>Visa</span>
                                 </Label>
                               </div>
-                              <div className="flex items-center space-x-2 border rounded-md p-4 hover-elevate">
+                              <div className="flex items-center space-x-3 border rounded-lg p-4 hover:bg-accent transition-colors cursor-pointer">
                                 <RadioGroupItem value="google_pay" id="google_pay" data-testid="radio-google-pay" />
                                 <Label htmlFor="google_pay" className="flex items-center gap-2 cursor-pointer flex-1">
                                   <Smartphone className="h-5 w-5" />
                                   <span>Google Pay</span>
                                 </Label>
                               </div>
-                              <div className="flex items-center space-x-2 border rounded-md p-4 hover-elevate">
+                              <div className="flex items-center space-x-3 border rounded-lg p-4 hover:bg-accent transition-colors cursor-pointer">
                                 <RadioGroupItem value="apple_pay" id="apple_pay" data-testid="radio-apple-pay" />
                                 <Label htmlFor="apple_pay" className="flex items-center gap-2 cursor-pointer flex-1">
                                   <Wallet className="h-5 w-5" />
@@ -234,13 +242,13 @@ export default function Checkout() {
                 <CardTitle>Order Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-3">
+                <div className="space-y-3 max-h-[400px] overflow-y-auto">
                   {items.map((item) => (
                     <div key={item.book.id} className="flex gap-3">
                       <img
                         src={item.book.coverImage}
                         alt={item.book.title}
-                        className="w-12 h-16 object-cover rounded-md"
+                        className="w-12 h-16 sm:w-14 sm:h-20 object-cover rounded-md flex-shrink-0"
                       />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium line-clamp-2">{item.book.title}</p>

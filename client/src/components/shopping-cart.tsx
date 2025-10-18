@@ -12,6 +12,7 @@ import { useCartStore } from "@/lib/cart-store";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useLocation } from "wouter";
+import Link from "next/link";
 
 export function ShoppingCartSheet() {
   const { items, removeItem, updateQuantity, getTotalPrice, getTotalItems } = useCartStore();
@@ -21,15 +22,15 @@ export function ShoppingCartSheet() {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="relative" 
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative"
           data-testid="button-cart"
         >
           <ShoppingCart className="h-5 w-5" />
           {totalItems > 0 && (
-            <Badge 
+            <Badge
               className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
               data-testid="badge-cart-count"
             >
@@ -57,9 +58,9 @@ export function ShoppingCartSheet() {
             <>
               <div className="flex-1 overflow-auto space-y-4">
                 {items.map((item) => (
-                  <div 
-                    key={item.book.id} 
-                    className="flex gap-4" 
+                  <div
+                    key={item.book.id}
+                    className="flex gap-4"
                     data-testid={`cart-item-${item.book.id}`}
                   >
                     <img
@@ -85,7 +86,7 @@ export function ShoppingCartSheet() {
                           >
                             <Minus className="h-3 w-3" />
                           </Button>
-                          <span 
+                          <span
                             className="w-8 text-center text-sm font-medium"
                             data-testid={`text-quantity-${item.book.id}`}
                           >
@@ -122,14 +123,11 @@ export function ShoppingCartSheet() {
                     ${getTotalPrice().toFixed(2)}
                   </span>
                 </div>
-                <Button 
-                  className="w-full" 
-                  size="lg"
-                  onClick={() => setLocation("/checkout")}
-                  data-testid="button-checkout"
-                >
-                  Proceed to Checkout
-                </Button>
+                <Link href="/checkout">
+                  <Button size="lg" className="w-full" data-testid="button-checkout">
+                    Proceed to Checkout
+                  </Button>
+                </Link>
               </div>
             </>
           )}

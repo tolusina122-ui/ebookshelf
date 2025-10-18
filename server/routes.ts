@@ -110,12 +110,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create payment session
-  app.post("/api/payment-sessions", async (req, res) => {
+  app.post("/api/payment/create-session", async (req, res) => {
     try {
-      const { items } = req.body;
+      const { items, customerEmail, paymentMethod, amount, currency } = req.body;
 
       if (!items || !Array.isArray(items) || items.length === 0) {
-        return res.status(400).send("No items provided for payment session");
+        return res.status(400).json({ success: false, message: "No items provided for payment session" });
+      }
+
+      if (!customerEmail || !paymentMethod) {
+        return res.status(400).json({ success: false, message: "Customer email and payment method are required" });
       }
 
       // Validate items and calculate total
@@ -125,10 +129,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const item of items) {
         const book = await storage.getBook(item.bookId);
         if (!book) {
-          return res.status(400).json({ message: `Book ${item.bookId} not found` });
+          return res.status(400).json({ success: false, message: `Book ${item.bookId} not found` });
         }
         if (parseFloat(book.price) !== parseFloat(item.price)) {
-          return res.status(400).json({ message: `Price mismatch for book ${book.title}. Expected ${book.price}, got ${item.price}` });
+          return res.status(400).json({ success: false, message: `Price mismatch for book ${book.title}` });
         }
 
         validatedItems.push({
@@ -139,21 +143,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         calculatedTotal += parseFloat(book.price) * parseInt(item.quantity);
       }
 
+      // Verify amount matches
+      if (Math.abs(calculatedTotal - amount) > 0.01) {
+        return res.status(400).json({ success: false, message: "Amount mismatch" });
+      }
+
       const sessionId = crypto.randomBytes(16).toString("hex");
 
-      // In a real application, you would interact with a payment provider (e.g., Stripe, Mastercard)
-      // to create a payment session here and store its details.
-      // For this example, we'll just store the session ID and total amount.
-      await storage.createPaymentSession({
-        id: sessionId,
-        totalAmount: calculatedTotal.toFixed(2),
-        status: "pending",
+      res.json({ 
+        success: true, 
+        sessionId, 
+        totalAmount: calculatedTotal.toFixed(2) 
       });
-
-      res.json({ sessionId, totalAmount: calculatedTotal.toFixed(2) });
     } catch (error: any) {
       console.error("Payment session creation error:", error);
-      res.status(500).json({ message: error.message });
+      res.status(500).json({ success: false, message: error.message });
     }
   });
 
