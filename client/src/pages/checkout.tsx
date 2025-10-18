@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useCartStore } from "@/lib/cart-store";
 import { Button } from "@/components/ui/button";
@@ -52,9 +51,9 @@ export default function Checkout() {
           price: item.book.price,
         })),
       });
-      
+
       const sessionData = await sessionResponse.json();
-      
+
       if (!sessionData.success) {
         throw new Error(sessionData.message || "Failed to create payment session");
       }
@@ -70,13 +69,13 @@ export default function Checkout() {
           price: item.book.price,
         })),
       });
-      
+
       const orderData = await response.json();
-      
+
       if (orderData.error) {
         throw new Error(orderData.message || "Payment processing failed");
       }
-      
+
       return orderData;
     },
     onSuccess: (data) => {
@@ -144,7 +143,7 @@ export default function Checkout() {
     <div className="min-h-screen bg-background py-4 sm:py-6 lg:py-8">
       <div className="container px-3 sm:px-4 md:px-6 max-w-7xl mx-auto">
         <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-3 sm:mb-4 lg:mb-6">Checkout</h1>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {/* Checkout Form */}
           <div className="lg:col-span-2 order-2 lg:order-1">
@@ -223,7 +222,7 @@ export default function Checkout() {
                     <Button 
                       type="submit" 
                       size="lg" 
-                      className="w-full"
+                      className="w-full text-sm sm:text-base"
                       disabled={createOrderMutation.isPending}
                       data-testid="button-place-order"
                     >

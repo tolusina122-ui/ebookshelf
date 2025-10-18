@@ -12,7 +12,7 @@ import { useCartStore } from "@/lib/cart-store";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
 
-export function ShoppingCartSheet() {
+export function ShoppingCart() {
   const { items, removeItem, updateQuantity, getTotalPrice, getTotalItems } = useCartStore();
   const [, setLocation] = useLocation();
   const totalItems = getTotalItems();
@@ -61,27 +61,24 @@ export function ShoppingCartSheet() {
                     className="flex gap-4"
                     data-testid={`cart-item-${item.book.id}`}
                   >
-                    <img
-                      src={item.book.coverImage}
-                      alt={item.book.title}
-                      className="w-20 h-28 object-cover rounded-md bg-muted cursor-pointer"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setLocation("/");
-                      }}
-                    />
+                    <div 
+                      className="w-20 h-28 cursor-pointer"
+                      onClick={() => setLocation("/")}
+                    >
+                      <img
+                        src={item.book.coverImage}
+                        alt={item.book.title}
+                        className="w-full h-full object-cover rounded-md bg-muted"
+                      />
+                    </div>
                     <div className="flex-1 space-y-2">
                       <div>
-                        <button
-                          type="button"
-                          className="font-semibold line-clamp-2 text-left hover:underline"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setLocation("/");
-                          }}
+                        <div
+                          className="font-semibold line-clamp-2 text-left hover:underline cursor-pointer"
+                          onClick={() => setLocation("/")}
                         >
                           {item.book.title}
-                        </button>
+                        </div>
                         <p className="text-sm font-semibold text-primary">
                           ${parseFloat(item.book.price).toFixed(2)}
                         </p>
@@ -150,3 +147,5 @@ export function ShoppingCartSheet() {
     </Sheet>
   );
 }
+
+export const ShoppingCartSheet = ShoppingCart;
