@@ -45,7 +45,7 @@ export async function processVisaPayment(request: PaymentRequest): Promise<Payme
     });
 
     // Simulate payment processing delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     // Simulate successful payment for test mode
     const transactionId = `VISA_${request.orderId}_${Date.now()}`;
@@ -53,6 +53,7 @@ export async function processVisaPayment(request: PaymentRequest): Promise<Payme
     return {
       success: true,
       transactionId: transactionId,
+      message: "Payment processed successfully in test mode"
     };
 
     // Production code would use CyberSource API:
@@ -112,7 +113,7 @@ export async function processMastercardPayment(request: PaymentRequest): Promise
     });
 
     // Simulate payment processing delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     // Simulate successful payment for test mode
     const transactionId = `MC_${request.orderId}_${Date.now()}`;
@@ -120,6 +121,7 @@ export async function processMastercardPayment(request: PaymentRequest): Promise
     return {
       success: true,
       transactionId: transactionId,
+      message: "Payment processed successfully in test mode"
     };
 
     // Production code would use this:

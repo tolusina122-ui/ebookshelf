@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { ShoppingCart, Trash2, Plus, Minus } from "lucide-react";
 import { useCartStore } from "@/lib/cart-store";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { useLocation } from "wouter";
 
 export function ShoppingCartSheet() {
@@ -22,7 +21,7 @@ export function ShoppingCartSheet() {
     <Sheet>
       <SheetTrigger asChild>
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon"
           className="relative"
           data-testid="button-cart"
@@ -66,13 +65,20 @@ export function ShoppingCartSheet() {
                       src={item.book.coverImage}
                       alt={item.book.title}
                       className="w-20 h-28 object-cover rounded-md bg-muted cursor-pointer"
-                      onClick={() => setLocation("/")}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setLocation("/");
+                      }}
                     />
                     <div className="flex-1 space-y-2">
                       <div>
                         <button
-                          className="font-semibold line-clamp-2 text-left"
-                          onClick={() => setLocation("/")}
+                          type="button"
+                          className="font-semibold line-clamp-2 text-left hover:underline"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setLocation("/");
+                          }}
                         >
                           {item.book.title}
                         </button>
