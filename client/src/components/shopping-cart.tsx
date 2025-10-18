@@ -61,8 +61,8 @@ export function ShoppingCart() {
                     className="flex gap-4"
                     data-testid={`cart-item-${item.book.id}`}
                   >
-                    <div 
-                      className="w-20 h-28 cursor-pointer"
+                    <button 
+                      className="w-20 h-28 cursor-pointer bg-transparent border-0 p-0"
                       onClick={() => setLocation("/")}
                     >
                       <img
@@ -70,15 +70,15 @@ export function ShoppingCart() {
                         alt={item.book.title}
                         className="w-full h-full object-cover rounded-md bg-muted"
                       />
-                    </div>
+                    </button>
                     <div className="flex-1 space-y-2">
                       <div>
-                        <div
-                          className="font-semibold line-clamp-2 text-left hover:underline cursor-pointer"
+                        <button
+                          className="font-semibold line-clamp-2 text-left hover:underline cursor-pointer bg-transparent border-0 p-0 w-full"
                           onClick={() => setLocation("/")}
                         >
                           {item.book.title}
-                        </div>
+                        </button>
                         <p className="text-sm font-semibold text-primary">
                           ${parseFloat(item.book.price).toFixed(2)}
                         </p>
@@ -147,5 +147,3 @@ export function ShoppingCart() {
     </Sheet>
   );
 }
-
-export const ShoppingCartSheet = ShoppingCart;
