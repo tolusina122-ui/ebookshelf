@@ -65,11 +65,17 @@ export function ShoppingCartSheet() {
                     <img
                       src={item.book.coverImage}
                       alt={item.book.title}
-                      className="w-20 h-28 object-cover rounded-md bg-muted"
+                      className="w-20 h-28 object-cover rounded-md bg-muted cursor-pointer"
+                      onClick={() => setLocation("/")}
                     />
                     <div className="flex-1 space-y-2">
                       <div>
-                        <h4 className="font-semibold line-clamp-2">{item.book.title}</h4>
+                        <button
+                          className="font-semibold line-clamp-2 text-left"
+                          onClick={() => setLocation("/")}
+                        >
+                          {item.book.title}
+                        </button>
                         <p className="text-sm font-semibold text-primary">
                           ${parseFloat(item.book.price).toFixed(2)}
                         </p>
@@ -122,9 +128,9 @@ export function ShoppingCartSheet() {
                     ${getTotalPrice().toFixed(2)}
                   </span>
                 </div>
-                <Button 
-                  size="lg" 
-                  className="w-full" 
+                <Button
+                  size="lg"
+                  className="w-full"
                   data-testid="button-checkout"
                   onClick={() => setLocation("/checkout")}
                 >
