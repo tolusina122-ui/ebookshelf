@@ -3,13 +3,14 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 
 const JWT_SECRET = process.env.SESSION_SECRET || "your-secret-key-change-in-production";
 
 // Middleware to verify admin token
 function verifyAdmin(req: any, res: any, next: any) {
   const token = req.headers.authorization?.replace("Bearer ", "");
-  
+
   if (!token) {
     return res.status(401).json({ message: "No token provided" });
   }
@@ -25,7 +26,7 @@ function verifyAdmin(req: any, res: any, next: any) {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Public Routes
-  
+
   // Get all books
   app.get("/api/books", async (req, res) => {
     try {
@@ -39,42 +40,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create order and process payment
   app.post("/api/orders", async (req, res) => {
     try {
-      const { customerEmail, paymentMethod, items } = req.body;
+      const { customerEmail, paymentMethod, sessionId, items: orderItemsData } = req.body;
 
-      // Validate request body
-      if (!customerEmail || !paymentMethod || !items || !Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({ message: "Invalid request: email, paymentMethod, and items are required" });
+      if (!customerEmail || !paymentMethod || !orderItemsData?.length) {
+        return res.status(400).send("Missing required fields");
       }
 
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(customerEmail)) {
-        return res.status(400).json({ message: "Invalid email format" });
+      // Calculate total
+      const total = orderItemsData.reduce((sum: number, item: any) => {
+        return sum + (parseFloat(item.price) * item.quantity);
+      }, 0);
+
+      // Process payment with session
+      const paymentResult = await processPayment({
+        amount: total,
+        currency: "USD",
+        paymentMethod,
+        customerEmail,
+        sessionId,
+      });
+
+      if (!paymentResult.success) {
+        return res.status(400).json({
+          error: "Payment failed",
+          message: paymentResult.message,
+        });
       }
 
-      // Validate payment method
-      const validPaymentMethods = ["mastercard", "visa", "prepaid", "google_pay", "apple_pay"];
-      if (!validPaymentMethods.includes(paymentMethod)) {
-        return res.status(400).json({ message: "Invalid payment method" });
+      // Create order
+      const order = await storage.createOrder({
+        customerEmail,
+        totalAmount: total.toFixed(2),
+        status: "completed", // Set to completed directly since payment was successful
+        paymentIntentId: paymentResult.paymentIntentId, // Store payment intent ID
+      });
+
+      // Create order items
+      for (const item of orderItemsData) {
+        await storage.createOrderItem({
+          orderId: order.id,
+          bookId: item.bookId,
+          quantity: parseInt(item.quantity),
+          price: item.price, // Store the price at the time of order
+        });
       }
 
-      // Validate and verify items against catalog
+      // Create transaction record
+      const transaction = await storage.createTransaction({
+        orderId: order.id,
+        amount: total.toFixed(2),
+        paymentMethod: paymentMethod,
+        status: "completed",
+        paymentIntentId: paymentResult.paymentIntentId || null,
+      });
+
+      // Create wallet transaction for received payment
+      await storage.createWalletTransaction({
+        type: "payment_received",
+        amount: total.toFixed(2),
+        status: "completed",
+        description: `Payment for order ${order.id}`,
+      });
+
+      res.json({ order, transaction });
+    } catch (error: any) {
+      console.error("Order processing error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Create payment session
+  app.post("/api/payment-sessions", async (req, res) => {
+    try {
+      const { items } = req.body;
+
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).send("No items provided for payment session");
+      }
+
+      // Validate items and calculate total
       let calculatedTotal = 0;
       const validatedItems = [];
 
       for (const item of items) {
-        if (!item.bookId || !item.quantity || !item.price) {
-          return res.status(400).json({ message: "Each item must have bookId, quantity, and price" });
-        }
-
-        // Verify book exists and price matches
         const book = await storage.getBook(item.bookId);
         if (!book) {
           return res.status(400).json({ message: `Book ${item.bookId} not found` });
         }
-
         if (parseFloat(book.price) !== parseFloat(item.price)) {
-          return res.status(400).json({ message: `Price mismatch for book ${book.title}` });
+          return res.status(400).json({ message: `Price mismatch for book ${book.title}. Expected ${book.price}, got ${item.price}` });
         }
 
         validatedItems.push({
@@ -82,98 +136,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
           quantity: parseInt(item.quantity),
           price: book.price,
         });
-
         calculatedTotal += parseFloat(book.price) * parseInt(item.quantity);
       }
 
-      // Create order
-      const order = await storage.createOrder({
-        customerEmail,
+      const sessionId = crypto.randomBytes(16).toString("hex");
+
+      // In a real application, you would interact with a payment provider (e.g., Stripe, Mastercard)
+      // to create a payment session here and store its details.
+      // For this example, we'll just store the session ID and total amount.
+      await storage.createPaymentSession({
+        id: sessionId,
         totalAmount: calculatedTotal.toFixed(2),
         status: "pending",
       });
 
-      // Create order items
-      for (const item of validatedItems) {
-        await storage.createOrderItem({
-          orderId: order.id,
-          bookId: item.bookId,
-          quantity: item.quantity,
-          price: item.price,
-        });
-      }
-
-      // Process payment with Visa CyberSource integration
-      const paymentResult = await processPayment(paymentMethod, calculatedTotal, customerEmail, order.id);
-
-      // Create transaction record
-      const transaction = await storage.createTransaction({
-        orderId: order.id,
-        amount: calculatedTotal.toFixed(2),
-        paymentMethod: paymentMethod,
-        status: paymentResult.success ? "completed" : "failed",
-        paymentIntentId: paymentResult.paymentIntentId || null,
-      });
-
-      if (paymentResult.success) {
-        // Update order status
-        await storage.updateOrderStatus(order.id, "completed");
-
-        // Create wallet transaction for received payment
-        await storage.createWalletTransaction({
-          type: "payment_received",
-          amount: calculatedTotal.toFixed(2),
-          status: "completed",
-          description: `Payment for order ${order.id}`,
-        });
-
-        res.json({ order, transaction });
-      } else {
-        // Update order status to pending on payment failure
-        await storage.updateOrderStatus(order.id, "pending");
-        res.status(400).json({ message: paymentResult.error || "Payment failed" });
-      }
+      res.json({ sessionId, totalAmount: calculatedTotal.toFixed(2) });
     } catch (error: any) {
+      console.error("Payment session creation error:", error);
       res.status(500).json({ message: error.message });
     }
   });
 
   // Payment processing function with real Visa/Mastercard integration
-  async function processPayment(paymentMethod: string, amount: number, email: string, orderId: string) {
+  async function processPayment(paymentRequest: { amount: number; currency: string; paymentMethod: string; customerEmail: string; sessionId?: string }) {
     const { processVisaPayment, processMastercardPayment, processDigitalWalletPayment } = await import("./payment-service");
-    
-    const paymentRequest = {
-      amount,
-      email,
-      paymentMethod,
-      orderId,
+
+    const commonPaymentDetails = {
+      amount: paymentRequest.amount,
+      currency: paymentRequest.currency,
+      email: paymentRequest.customerEmail,
+      orderId: paymentRequest.sessionId, // Use sessionId as orderId for payment processing
     };
 
     // Route to appropriate payment processor
-    if (paymentMethod === "visa") {
-      const result = await processVisaPayment(paymentRequest);
+    if (paymentRequest.paymentMethod === "visa") {
+      const result = await processVisaPayment(commonPaymentDetails);
       return {
         success: result.success,
         paymentIntentId: result.transactionId,
         error: result.error,
       };
-    } else if (paymentMethod === "mastercard") {
-      const result = await processMastercardPayment(paymentRequest);
+    } else if (paymentRequest.paymentMethod === "mastercard") {
+      const result = await processMastercardPayment(commonPaymentDetails);
       return {
         success: result.success,
         paymentIntentId: result.transactionId,
         error: result.error,
       };
-    } else if (paymentMethod === "google_pay" || paymentMethod === "apple_pay") {
-      const result = await processDigitalWalletPayment(paymentRequest);
+    } else if (paymentRequest.paymentMethod === "google_pay" || paymentRequest.paymentMethod === "apple_pay") {
+      const result = await processDigitalWalletPayment(commonPaymentDetails);
       return {
         success: result.success,
         paymentIntentId: result.transactionId,
         error: result.error,
       };
-    } else if (paymentMethod === "prepaid") {
+    } else if (paymentRequest.paymentMethod === "prepaid") {
       // Prepaid cards also go through CyberSource
-      const result = await processVisaPayment(paymentRequest);
+      const result = await processVisaPayment(commonPaymentDetails);
       return {
         success: result.success,
         paymentIntentId: result.transactionId,
@@ -202,15 +221,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!password || typeof password !== "string" || password.length === 0) {
         return res.status(400).json({ message: "Password is required" });
       }
-      
+
       const admin = await storage.getAdminByUsername(username.trim());
-      
+
       if (!admin) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
       const validPassword = await bcrypt.compare(password, admin.password);
-      
+
       if (!validPassword) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
@@ -238,7 +257,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!password || typeof password !== "string" || password.length < 6) {
         return res.status(400).json({ message: "Password is required and must be at least 6 characters" });
       }
-      
+
       const existingAdmin = await storage.getAdminByUsername(username.trim());
       if (existingAdmin) {
         return res.status(400).json({ message: "Admin already exists" });
@@ -261,7 +280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const allTransactions = await storage.getTransactions();
       const completedTransactions = allTransactions.filter(t => t.status === "completed");
-      
+
       const totalRevenue = completedTransactions.reduce(
         (sum, t) => sum + parseFloat(t.amount),
         0
@@ -272,22 +291,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const averageOrderValue = orders.length > 0 ? totalRevenue / orders.length : 0;
 
-      const recentTransactions = allTransactions.slice(0, 5).map(async (t) => {
-        const order = await storage.getOrder(t.orderId);
-        return {
-          id: t.id,
-          amount: t.amount,
-          customerEmail: order?.customerEmail || "Unknown",
-          createdAt: t.createdAt,
-        };
-      });
+      const recentTransactions = await Promise.all(
+        allTransactions.slice(0, 5).map(async (t) => {
+          const order = await storage.getOrder(t.orderId);
+          return {
+            id: t.id,
+            amount: t.amount,
+            customerEmail: order?.customerEmail || "Unknown",
+            createdAt: t.createdAt,
+          };
+        })
+      );
+
 
       res.json({
         totalRevenue,
         totalOrders: orders.length,
         totalBooks: books.length,
         averageOrderValue,
-        recentTransactions: await Promise.all(recentTransactions),
+        recentTransactions,
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
@@ -407,7 +429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/transactions/:id/refund", verifyAdmin, async (req, res) => {
     try {
       const transaction = await storage.getTransaction(req.params.id);
-      
+
       if (!transaction) {
         return res.status(404).json({ message: "Transaction not found" });
       }
@@ -441,7 +463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const balance = await storage.getWalletBalance();
       const transactions = await storage.getWalletTransactions();
-      
+
       res.json({
         ...balance,
         transactions,

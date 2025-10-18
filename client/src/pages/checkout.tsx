@@ -39,9 +39,30 @@ export default function Checkout() {
 
   const createOrderMutation = useMutation({
     mutationFn: async (data: CheckoutForm) => {
+      // Step 1: Create payment session
+      const sessionResponse = await apiRequest("POST", "/api/payment/create-session", {
+        customerEmail: data.email,
+        paymentMethod: data.paymentMethod,
+        amount: getTotalPrice(),
+        currency: "USD",
+        items: items.map(item => ({
+          bookId: item.book.id,
+          quantity: item.quantity,
+          price: item.book.price,
+        })),
+      });
+      
+      const sessionData = await sessionResponse.json();
+      
+      if (!sessionData.success) {
+        throw new Error(sessionData.message || "Failed to create payment session");
+      }
+
+      // Step 2: Create order with session ID
       const response = await apiRequest("POST", "/api/orders", {
         customerEmail: data.email,
         paymentMethod: data.paymentMethod,
+        sessionId: sessionData.sessionId,
         items: items.map(item => ({
           bookId: item.book.id,
           quantity: item.quantity,
@@ -112,13 +133,13 @@ export default function Checkout() {
   }
 
   return (
-    <div className="min-h-screen bg-background py-12">
+    <div className="min-h-screen bg-background py-6 md:py-12">
       <div className="container px-4 md:px-6 max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Checkout</h1>
+        <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Checkout</h1>
         
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
           {/* Checkout Form */}
-          <div className="md:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-6 order-2 lg:order-1">
             <Card>
               <CardHeader>
                 <CardTitle>Contact Information</CardTitle>
@@ -207,8 +228,8 @@ export default function Checkout() {
           </div>
 
           {/* Order Summary */}
-          <div className="md:col-span-1">
-            <Card className="sticky top-4">
+          <div className="lg:col-span-1 order-1 lg:order-2">
+            <Card className="lg:sticky lg:top-4">
               <CardHeader>
                 <CardTitle>Order Summary</CardTitle>
               </CardHeader>

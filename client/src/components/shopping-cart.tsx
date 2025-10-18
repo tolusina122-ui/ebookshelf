@@ -4,6 +4,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
+  SheetDescription,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Trash2, Plus, Minus } from "lucide-react";
@@ -37,9 +38,12 @@ export function ShoppingCartSheet() {
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-full sm:max-w-lg">
+      <SheetContent className="w-full sm:max-w-lg flex flex-col">
         <SheetHeader>
           <SheetTitle>Shopping Cart ({totalItems} items)</SheetTitle>
+          <SheetDescription>
+            Review your items and proceed to checkout
+          </SheetDescription>
         </SheetHeader>
         <div className="flex flex-col h-full mt-6">
           {items.length === 0 ? (
