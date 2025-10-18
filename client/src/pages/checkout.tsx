@@ -141,20 +141,20 @@ export default function Checkout() {
   }
 
   return (
-    <div className="min-h-screen bg-background py-4 sm:py-8 lg:py-12">
-      <div className="container px-4 sm:px-6 max-w-7xl mx-auto">
-        <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6 lg:mb-8">Checkout</h1>
+    <div className="min-h-screen bg-background py-4 sm:py-6 lg:py-8">
+      <div className="container px-3 sm:px-4 md:px-6 max-w-7xl mx-auto">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-3 sm:mb-4 lg:mb-6">Checkout</h1>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {/* Checkout Form */}
           <div className="lg:col-span-2 order-2 lg:order-1">
             <Card>
-              <CardHeader>
-                <CardTitle>Contact Information</CardTitle>
+              <CardHeader className="pb-3 sm:pb-6">
+                <CardTitle className="text-lg sm:text-xl">Contact Information</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
                     <FormField
                       control={form.control}
                       name="email"
@@ -183,34 +183,34 @@ export default function Checkout() {
                             <RadioGroup
                               onValueChange={field.onChange}
                               defaultValue={field.value}
-                              className="grid grid-cols-1 gap-3"
+                              className="grid grid-cols-1 gap-2 sm:gap-3"
                             >
-                              <div className="flex items-center space-x-3 border rounded-lg p-4 hover:bg-accent transition-colors cursor-pointer">
+                              <div className="flex items-center space-x-2 sm:space-x-3 border rounded-lg p-3 sm:p-4 hover:bg-accent transition-colors cursor-pointer">
                                 <RadioGroupItem value="mastercard" id="mastercard" data-testid="radio-mastercard" />
                                 <Label htmlFor="mastercard" className="flex items-center gap-2 cursor-pointer flex-1">
-                                  <CreditCard className="h-5 w-5" />
-                                  <span>Mastercard</span>
+                                  <CreditCard className="h-4 w-4 sm:h-5 sm:w-5" />
+                                  <span className="text-sm sm:text-base">Mastercard</span>
                                 </Label>
                               </div>
-                              <div className="flex items-center space-x-3 border rounded-lg p-4 hover:bg-accent transition-colors cursor-pointer">
+                              <div className="flex items-center space-x-2 sm:space-x-3 border rounded-lg p-3 sm:p-4 hover:bg-accent transition-colors cursor-pointer">
                                 <RadioGroupItem value="visa" id="visa" data-testid="radio-visa" />
                                 <Label htmlFor="visa" className="flex items-center gap-2 cursor-pointer flex-1">
-                                  <CreditCard className="h-5 w-5" />
-                                  <span>Visa</span>
+                                  <CreditCard className="h-4 w-4 sm:h-5 sm:w-5" />
+                                  <span className="text-sm sm:text-base">Visa</span>
                                 </Label>
                               </div>
-                              <div className="flex items-center space-x-3 border rounded-lg p-4 hover:bg-accent transition-colors cursor-pointer">
+                              <div className="flex items-center space-x-2 sm:space-x-3 border rounded-lg p-3 sm:p-4 hover:bg-accent transition-colors cursor-pointer">
                                 <RadioGroupItem value="google_pay" id="google_pay" data-testid="radio-google-pay" />
                                 <Label htmlFor="google_pay" className="flex items-center gap-2 cursor-pointer flex-1">
-                                  <Smartphone className="h-5 w-5" />
-                                  <span>Google Pay</span>
+                                  <Smartphone className="h-4 w-4 sm:h-5 sm:w-5" />
+                                  <span className="text-sm sm:text-base">Google Pay</span>
                                 </Label>
                               </div>
-                              <div className="flex items-center space-x-3 border rounded-lg p-4 hover:bg-accent transition-colors cursor-pointer">
+                              <div className="flex items-center space-x-2 sm:space-x-3 border rounded-lg p-3 sm:p-4 hover:bg-accent transition-colors cursor-pointer">
                                 <RadioGroupItem value="apple_pay" id="apple_pay" data-testid="radio-apple-pay" />
                                 <Label htmlFor="apple_pay" className="flex items-center gap-2 cursor-pointer flex-1">
-                                  <Wallet className="h-5 w-5" />
-                                  <span>Apple Pay</span>
+                                  <Wallet className="h-4 w-4 sm:h-5 sm:w-5" />
+                                  <span className="text-sm sm:text-base">Apple Pay</span>
                                 </Label>
                               </div>
                             </RadioGroup>
@@ -238,30 +238,30 @@ export default function Checkout() {
           {/* Order Summary */}
           <div className="lg:col-span-1 order-1 lg:order-2">
             <Card className="lg:sticky lg:top-4">
-              <CardHeader>
-                <CardTitle>Order Summary</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg sm:text-xl">Order Summary</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3 max-h-[400px] overflow-y-auto">
+              <CardContent className="space-y-3 sm:space-y-4">
+                <div className="space-y-2 sm:space-y-3 max-h-[300px] sm:max-h-[400px] overflow-y-auto pr-1">
                   {items.map((item) => (
-                    <div key={item.book.id} className="flex gap-3">
+                    <div key={item.book.id} className="flex gap-2 sm:gap-3">
                       <img
                         src={item.book.coverImage}
                         alt={item.book.title}
-                        className="w-12 h-16 sm:w-14 sm:h-20 object-cover rounded-md flex-shrink-0"
+                        className="w-10 h-14 sm:w-12 sm:h-16 lg:w-14 lg:h-20 object-cover rounded-md flex-shrink-0"
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium line-clamp-2">{item.book.title}</p>
-                        <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+                        <p className="text-xs sm:text-sm font-medium line-clamp-2">{item.book.title}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">Qty: {item.quantity}</p>
                       </div>
-                      <span className="text-sm font-semibold whitespace-nowrap">
+                      <span className="text-xs sm:text-sm font-semibold whitespace-nowrap self-start">
                         ${(parseFloat(item.book.price) * item.quantity).toFixed(2)}
                       </span>
                     </div>
                   ))}
                 </div>
                 <Separator />
-                <div className="flex items-center justify-between text-lg font-bold">
+                <div className="flex items-center justify-between text-base sm:text-lg font-bold pt-1">
                   <span>Total</span>
                   <span data-testid="text-checkout-total">${getTotalPrice().toFixed(2)}</span>
                 </div>

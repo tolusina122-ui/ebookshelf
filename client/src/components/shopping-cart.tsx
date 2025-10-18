@@ -12,7 +12,6 @@ import { useCartStore } from "@/lib/cart-store";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useLocation } from "wouter";
-import Link from "next/link";
 
 export function ShoppingCartSheet() {
   const { items, removeItem, updateQuantity, getTotalPrice, getTotalItems } = useCartStore();
@@ -123,11 +122,14 @@ export function ShoppingCartSheet() {
                     ${getTotalPrice().toFixed(2)}
                   </span>
                 </div>
-                <Link href="/checkout">
-                  <Button size="lg" className="w-full" data-testid="button-checkout">
-                    Proceed to Checkout
-                  </Button>
-                </Link>
+                <Button 
+                  size="lg" 
+                  className="w-full" 
+                  data-testid="button-checkout"
+                  onClick={() => setLocation("/checkout")}
+                >
+                  Proceed to Checkout
+                </Button>
               </div>
             </>
           )}

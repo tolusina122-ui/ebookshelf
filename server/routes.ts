@@ -63,7 +63,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!paymentResult.success) {
         return res.status(400).json({
           error: "Payment failed",
-          message: paymentResult.message,
+          message: paymentResult.error || paymentResult.message || "Payment processing failed. Please try again.",
         });
       }
 
@@ -163,51 +163,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Payment processing function with real Visa/Mastercard integration
   async function processPayment(paymentRequest: { amount: number; currency: string; paymentMethod: string; customerEmail: string; sessionId?: string }) {
-    const { processVisaPayment, processMastercardPayment, processDigitalWalletPayment } = await import("./payment-service");
+    try {
+      const { processVisaPayment, processMastercardPayment, processDigitalWalletPayment } = await import("./payment-service");
 
-    const commonPaymentDetails = {
-      amount: paymentRequest.amount,
-      currency: paymentRequest.currency,
-      email: paymentRequest.customerEmail,
-      orderId: paymentRequest.sessionId, // Use sessionId as orderId for payment processing
-    };
+      const commonPaymentDetails = {
+        amount: paymentRequest.amount,
+        currency: paymentRequest.currency,
+        email: paymentRequest.customerEmail,
+        orderId: paymentRequest.sessionId, // Use sessionId as orderId for payment processing
+      };
 
-    // Route to appropriate payment processor
-    if (paymentRequest.paymentMethod === "visa") {
-      const result = await processVisaPayment(commonPaymentDetails);
+      // Route to appropriate payment processor
+      if (paymentRequest.paymentMethod === "visa") {
+        const result = await processVisaPayment(commonPaymentDetails);
+        return {
+          success: result.success,
+          paymentIntentId: result.transactionId,
+          error: result.error,
+          message: result.message,
+        };
+      } else if (paymentRequest.paymentMethod === "mastercard") {
+        const result = await processMastercardPayment(commonPaymentDetails);
+        return {
+          success: result.success,
+          paymentIntentId: result.transactionId,
+          error: result.error,
+          message: result.message,
+        };
+      } else if (paymentRequest.paymentMethod === "google_pay" || paymentRequest.paymentMethod === "apple_pay") {
+        const result = await processDigitalWalletPayment(commonPaymentDetails);
+        return {
+          success: result.success,
+          paymentIntentId: result.transactionId,
+          error: result.error,
+          message: result.message,
+        };
+      } else if (paymentRequest.paymentMethod === "prepaid") {
+        // Prepaid cards also go through CyberSource
+        const result = await processVisaPayment(commonPaymentDetails);
+        return {
+          success: result.success,
+          paymentIntentId: result.transactionId,
+          error: result.error,
+          message: result.message,
+        };
+      }
+
       return {
-        success: result.success,
-        paymentIntentId: result.transactionId,
-        error: result.error,
+        success: false,
+        error: "Invalid payment method",
+        message: "The selected payment method is not supported.",
       };
-    } else if (paymentRequest.paymentMethod === "mastercard") {
-      const result = await processMastercardPayment(commonPaymentDetails);
+    } catch (error: any) {
+      console.error("Payment processing error:", error);
       return {
-        success: result.success,
-        paymentIntentId: result.transactionId,
-        error: result.error,
-      };
-    } else if (paymentRequest.paymentMethod === "google_pay" || paymentRequest.paymentMethod === "apple_pay") {
-      const result = await processDigitalWalletPayment(commonPaymentDetails);
-      return {
-        success: result.success,
-        paymentIntentId: result.transactionId,
-        error: result.error,
-      };
-    } else if (paymentRequest.paymentMethod === "prepaid") {
-      // Prepaid cards also go through CyberSource
-      const result = await processVisaPayment(commonPaymentDetails);
-      return {
-        success: result.success,
-        paymentIntentId: result.transactionId,
-        error: result.error,
+        success: false,
+        error: error.message || "Payment processing failed",
+        message: "An error occurred while processing your payment. Please try again.",
       };
     }
-
-    return {
-      success: false,
-      error: "Invalid payment method",
-    };
   }
 
   // Admin Routes
