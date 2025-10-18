@@ -1,3 +1,4 @@
+
 import {
   Sheet,
   SheetContent,
@@ -7,7 +8,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, Trash2, Plus, Minus } from "lucide-react";
+import { ShoppingCart as ShoppingCartIcon, Trash2, Plus, Minus } from "lucide-react";
 import { useCartStore } from "@/lib/cart-store";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
@@ -26,7 +27,7 @@ export function ShoppingCart() {
           className="relative"
           data-testid="button-cart"
         >
-          <ShoppingCart className="h-5 w-5" />
+          <ShoppingCartIcon className="h-5 w-5" />
           {totalItems > 0 && (
             <Badge
               className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
@@ -48,7 +49,7 @@ export function ShoppingCart() {
           {items.length === 0 ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center space-y-2">
-                <ShoppingCart className="h-12 w-12 mx-auto text-muted-foreground" />
+                <ShoppingCartIcon className="h-12 w-12 mx-auto text-muted-foreground" />
                 <p className="text-muted-foreground">Your cart is empty</p>
               </div>
             </div>
