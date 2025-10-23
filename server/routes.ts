@@ -71,8 +71,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const order = await storage.createOrder({
         customerEmail,
         totalAmount: total.toFixed(2),
-        status: "completed", // Set to completed directly since payment was successful
-        paymentIntentId: paymentResult.paymentIntentId, // Store payment intent ID
+        status: "completed",
       });
 
       // Create order items
@@ -91,7 +90,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amount: total.toFixed(2),
         paymentMethod: paymentMethod,
         status: "completed",
-        paymentIntentId: paymentResult.paymentIntentId || null,
+        paymentIntentId: (paymentResult as any).paymentIntentId || null,
       });
 
       // Create wallet transaction for received payment
@@ -161,6 +160,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Mastercard hosted checkout: create session and return checkout URL
+  app.post("/api/payment/mastercard/create-session", async (req, res) => {
+    try {
+      const { items, customerEmail, amount, currency } = req.body;
+
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ success: false, message: "No items provided for payment session" });
+      }
+
+      if (!customerEmail) {
+        return res.status(400).json({ success: false, message: "Customer email required" });
+      }
+
+      // Validate items and calculate total
+      let calculatedTotal = 0;
+      const validatedItems: any[] = [];
+      for (const item of items) {
+        const book = await storage.getBook(item.bookId);
+        if (!book) return res.status(400).json({ success: false, message: `Book ${item.bookId} not found` });
+        if (parseFloat(book.price) !== parseFloat(item.price)) return res.status(400).json({ success: false, message: `Price mismatch for book ${book.title}` });
+        validatedItems.push({ bookId: item.bookId, quantity: parseInt(item.quantity), price: book.price });
+        calculatedTotal += parseFloat(book.price) * parseInt(item.quantity);
+      }
+
+      if (Math.abs(calculatedTotal - amount) > 0.01) {
+        return res.status(400).json({ success: false, message: "Amount mismatch" });
+      }
+
+      // create a pending order and transaction to track the session
+      const order = await storage.createOrder({
+        customerEmail,
+        totalAmount: calculatedTotal.toFixed(2),
+        status: "pending",
+      });
+
+      for (const it of validatedItems) {
+        await storage.createOrderItem({ orderId: order.id, bookId: it.bookId, quantity: it.quantity, price: it.price });
+      }
+
+      const sessionId = crypto.randomBytes(16).toString("hex");
+
+      const transaction = await storage.createTransaction({
+        orderId: order.id,
+        amount: calculatedTotal.toFixed(2),
+        paymentMethod: "mastercard",
+        status: "pending",
+        paymentIntentId: sessionId,
+      });
+
+      // determine allowed origin
+      const allowedRaw = process.env.MASTERCARD_ALLOWED_ORIGINS || process.env.MASTERCARD_ALLOWED_ORIGIN || "https://animated-fortnight-97gwr446rvq927r47-5000.app.github.dev/checkout";
+      const allowed = allowedRaw.split(",").map(s => s.trim()).filter(Boolean)[0];
+      const checkoutUrl = `${allowed}?sessionId=${sessionId}`;
+
+      res.json({ success: true, sessionId, checkoutUrl });
+    } catch (error: any) {
+      console.error("Mastercard create-session error:", error);
+      res.status(500).json({ success: false, message: error.message || "Could not create session" });
+    }
+  });
+
+  // Mastercard checkout complete: called by the client after checkout (or webhook)
+  app.post("/api/payment/mastercard/complete", async (req, res) => {
+    try {
+      const { sessionId, success } = req.body;
+      if (!sessionId) return res.status(400).json({ success: false, message: "sessionId required" });
+
+      const transactions = await storage.getTransactions();
+      const tx = transactions.find(t => t.paymentIntentId === sessionId);
+      if (!tx) return res.status(404).json({ success: false, message: "Transaction not found" });
+
+      if (success) {
+        // mark transaction and order as completed
+        await storage.updateTransactionStatus(tx.id, "completed");
+        await storage.updateOrderStatus(tx.orderId, "completed");
+
+        // create wallet transaction
+        await storage.createWalletTransaction({ type: "payment_received", amount: tx.amount, status: "completed", description: `Payment for order ${tx.orderId}` });
+
+        return res.json({ success: true, message: "Payment completed" });
+      }
+
+      // mark failed
+      await storage.updateTransactionStatus(tx.id, "failed");
+      await storage.updateOrderStatus(tx.orderId, "pending");
+      return res.json({ success: false, message: "Payment failed" });
+    } catch (error: any) {
+      console.error("Mastercard complete error:", error);
+      res.status(500).json({ success: false, message: error.message || "Could not complete session" });
+    }
+  });
+
   // Payment processing function with real Visa/Mastercard integration
   async function processPayment(paymentRequest: { amount: number; currency: string; paymentMethod: string; customerEmail: string; sessionId?: string }) {
     try {
@@ -170,12 +261,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         amount: paymentRequest.amount,
         currency: paymentRequest.currency,
         email: paymentRequest.customerEmail,
+        paymentMethod: paymentRequest.paymentMethod,
         orderId: paymentRequest.sessionId, // Use sessionId as orderId for payment processing
       };
 
       // Route to appropriate payment processor
       if (paymentRequest.paymentMethod === "visa") {
-        const result = await processVisaPayment(commonPaymentDetails);
+        const result = await processVisaPayment(commonPaymentDetails as any);
         return {
           success: result.success,
           paymentIntentId: result.transactionId,
@@ -183,7 +275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: result.message,
         };
       } else if (paymentRequest.paymentMethod === "mastercard") {
-        const result = await processMastercardPayment(commonPaymentDetails);
+        const result = await processMastercardPayment(commonPaymentDetails as any);
         return {
           success: result.success,
           paymentIntentId: result.transactionId,
@@ -191,7 +283,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: result.message,
         };
       } else if (paymentRequest.paymentMethod === "google_pay" || paymentRequest.paymentMethod === "apple_pay") {
-        const result = await processDigitalWalletPayment(commonPaymentDetails);
+        const result = await processDigitalWalletPayment(commonPaymentDetails as any);
         return {
           success: result.success,
           paymentIntentId: result.transactionId,
@@ -200,7 +292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       } else if (paymentRequest.paymentMethod === "prepaid") {
         // Prepaid cards also go through CyberSource
-        const result = await processVisaPayment(commonPaymentDetails);
+        const result = await processVisaPayment(commonPaymentDetails as any);
         return {
           success: result.success,
           paymentIntentId: result.transactionId,
@@ -223,6 +315,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
     }
   }
+
+  // Server-side Visa charge (accepts card details) - admin or client can call with card info
+  app.post('/api/payment/visa/charge', async (req, res) => {
+    try {
+      const { card, amount, currency, customerEmail } = req.body;
+      if (!card || !card.number || !card.expiryMonth || !card.expiryYear) return res.status(400).json({ success: false, message: 'card details required' });
+      if (!amount || !customerEmail) return res.status(400).json({ success: false, message: 'amount and customerEmail required' });
+
+      // create pending order and transaction
+      const order = await storage.createOrder({ customerEmail, totalAmount: parseFloat(amount).toFixed(2), status: 'pending' });
+      const tx = await storage.createTransaction({ orderId: order.id, amount: parseFloat(amount).toFixed(2), paymentMethod: 'visa', status: 'pending' });
+
+      const { processVisaPayment } = await import('./payment-service');
+
+      const paymentResult = await processVisaPayment({ amount: parseFloat(amount), email: customerEmail, paymentMethod: 'visa', orderId: order.id, card });
+
+      if (!paymentResult.success) {
+        await storage.updateTransactionStatus(tx.id, 'failed');
+        await storage.updateOrderStatus(order.id, 'pending');
+        return res.status(400).json({ success: false, error: paymentResult.error });
+      }
+
+      // success
+      await storage.updateTransactionStatus(tx.id, 'completed');
+      await storage.updateOrderStatus(order.id, 'completed');
+      await storage.createWalletTransaction({ type: 'payment_received', amount: parseFloat(amount).toFixed(2), status: 'completed', description: `Visa payment for order ${order.id}` });
+
+      res.json({ success: true, transactionId: paymentResult.transactionId, orderId: order.id });
+    } catch (err: any) {
+      console.error('Visa charge error', err);
+      res.status(500).json({ success: false, message: err.message || 'Visa charge failed' });
+    }
+  });
 
   // Admin Routes
 
@@ -331,6 +456,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
+    }
+  });
+
+  // DB status (admin only)
+  app.get("/api/admin/db-status", verifyAdmin, async (_req, res) => {
+    try {
+      // best-effort: call storage methods to infer whether DB is connected or in-memory
+      const books = await storage.getBooks();
+      const adminsList = await storage.getAdminByUsername ? await (async () => {
+        // storage.getAdminByUsername exists always, but call to get an existing admin by username
+        const admin = await storage.getAdminByUsername("admin");
+        return admin ? [admin] : [];
+      })() : [];
+
+      res.json({
+        connected: true,
+        counts: {
+          books: books.length,
+          admins: adminsList.length,
+        },
+      });
+    } catch (err: any) {
+      res.json({ connected: false, error: err.message });
+    }
+  });
+
+  // Backup status (admin only)
+  app.get("/api/admin/backup-status", verifyAdmin, async (_req, res) => {
+    try {
+      // storage may be MirroredStorage
+      const anyStorage: any = storage as any;
+      if (anyStorage && typeof anyStorage.backupStatus === 'function') {
+        // include queued tasks from backupQueue if available
+        let tasks: any[] = [];
+        try {
+          // require here to avoid circular imports in modules that don't need the queue
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          const queue = require('./backupQueue').default;
+          if (queue && typeof queue.list === 'function') tasks = queue.list(50);
+        } catch (e) {}
+
+        return res.json({ enabled: true, status: anyStorage.backupStatus(), queue: tasks });
+      }
+      res.json({ enabled: false, message: 'No backup configured' });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
     }
   });
 

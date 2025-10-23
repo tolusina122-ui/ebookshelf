@@ -1,5 +1,5 @@
 import { ThemeToggle } from "./theme-toggle";
-import { ShoppingCart } from "./shopping-cart";
+import ShoppingCart from "./shopping-cart";
 import { useLocation } from "wouter";
 
 export function Navbar() {

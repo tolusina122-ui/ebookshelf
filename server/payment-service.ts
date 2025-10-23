@@ -4,10 +4,10 @@ import fs from "fs";
 import path from "path";
 import https from "https";
 
-// Visa CyberSource credentials
-const VISA_MERCHANT_ID = "supabros";
-const VISA_API_KEY = "d380172a-a0c9-4eef-a5a7-6961a3ebafff";
-const VISA_SHARED_SECRET = "hxEurONBUnl8dZxTyJh+TBAZ0B+k8n6tsdIuYd1/KZU=";
+// Visa CyberSource credentials (read from env in production/dev)
+const VISA_MERCHANT_ID = process.env.VISA_MERCHANT_ID || "supabros";
+const VISA_API_KEY = process.env.VISA_API_KEY || "d380172a-a0c9-4eef-a5a7-6961a3ebafff";
+const VISA_SHARED_SECRET = process.env.VISA_SHARED_SECRET || "hxEurONBUnl8dZxTyJh+TBAZ0B+k8n6tsdIuYd1/KZU=";
 
 // Mastercard Gateway credentials (sandbox)
 const MASTERCARD_MERCHANT_ID = "TEST7000100244";
@@ -26,39 +26,38 @@ interface PaymentRequest {
   amount: number;
   email: string;
   paymentMethod: string;
-  orderId: string;
+  orderId?: string | undefined;
+  // optional card data when doing server-side card processing
+  card?: {
+    number: string;
+    expiryMonth: string;
+    expiryYear: string;
+    securityCode?: string;
+  } | undefined;
 }
 
 interface PaymentResponse {
   success: boolean;
   transactionId?: string;
   error?: string;
+  // message used in some test-mode returns; keep optional
+  message?: string;
 }
 
 export async function processVisaPayment(request: PaymentRequest): Promise<PaymentResponse> {
   try {
-    // For test environment, simulate successful payment
-    console.log("Processing Visa payment in test mode:", {
-      amount: request.amount,
-      email: request.email,
-      orderId: request.orderId
-    });
+    // If credentials and card data are available, attempt a real CyberSource request
+    const canDoReal = !!(VISA_MERCHANT_ID && VISA_API_KEY && VISA_SHARED_SECRET && request.card);
+    if (!canDoReal) {
+      // fallback to test-mode simulation
+      console.info("Visa real-processing disabled or missing card data. Running in simulated mode.");
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const transactionId = `VISA_${request.orderId}_${Date.now()}`;
+      return { success: true, transactionId, message: "Payment processed successfully in test mode" };
+    }
 
-    // Simulate payment processing delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    // Simulate successful payment for test mode
-    const transactionId = `VISA_${request.orderId}_${Date.now()}`;
-    
-    return {
-      success: true,
-      transactionId: transactionId,
-      message: "Payment processed successfully in test mode"
-    };
-
-    // Production code would use CyberSource API:
-    /*
-    const configObject = {
+    // Build CyberSource config using environment-provided creds
+    const configObject: any = {
       authenticationType: "http_signature",
       merchantID: VISA_MERCHANT_ID,
       merchantKeyId: VISA_API_KEY,
@@ -72,8 +71,15 @@ export async function processVisaPayment(request: PaymentRequest): Promise<Payme
     const requestObj = new cybersourceRestApi.CreatePaymentRequest();
     requestObj.clientReferenceInformation = { code: request.orderId };
     requestObj.processingInformation = { capture: true };
+    // request.card is present because canDoReal was true
+    const card = request.card!;
     requestObj.paymentInformation = {
-      card: { type: request.paymentMethod === "visa" ? "001" : "002" }
+      card: {
+        number: card.number,
+        expirationMonth: card.expiryMonth,
+        expirationYear: card.expiryYear,
+        securityCode: card.securityCode,
+      }
     };
     requestObj.orderInformation = {
       amountDetails: { totalAmount: request.amount.toFixed(2), currency: "USD" },
@@ -85,14 +91,13 @@ export async function processVisaPayment(request: PaymentRequest): Promise<Payme
       instance.createPayment(requestObj, (error: any, data: any) => {
         if (error) {
           resolve({ success: false, error: error.message || "Payment processing failed" });
-        } else if (data && data.status === "AUTHORIZED") {
-          resolve({ success: true, transactionId: data.id });
+        } else if (data && (data.status === "AUTHORIZED" || data.status === 'PENDING' || data.status === 'COMPLETED')) {
+          resolve({ success: true, transactionId: data.id || data.transactionReference });
         } else {
           resolve({ success: false, error: data?.errorInformation?.message || "Payment declined" });
         }
       });
     });
-    */
   } catch (error: any) {
     console.error("Payment processing error:", error);
     return {

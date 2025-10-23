@@ -1,4 +1,4 @@
-
+import React from 'react';
 import {
   Sheet,
   SheetContent,
@@ -6,14 +6,14 @@ import {
   SheetTitle,
   SheetTrigger,
   SheetDescription,
-} from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { ShoppingCart as ShoppingCartIcon, Trash2, Plus, Minus } from "lucide-react";
-import { useCartStore } from "@/lib/cart-store";
-import { Badge } from "@/components/ui/badge";
-import { useLocation } from "wouter";
+} from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { ShoppingCart as ShoppingCartIcon, Trash2, Plus, Minus } from 'lucide-react';
+import { useCartStore } from '@/lib/cart-store';
+import { Badge } from '@/components/ui/badge';
+import { useLocation } from 'wouter';
 
-export function ShoppingCart() {
+export default function ShoppingCart() {
   const { items, removeItem, updateQuantity, getTotalPrice, getTotalItems } = useCartStore();
   const [, setLocation] = useLocation();
   const totalItems = getTotalItems();
@@ -64,7 +64,7 @@ export function ShoppingCart() {
                   >
                     <button 
                       className="w-20 h-28 cursor-pointer bg-transparent border-0 p-0"
-                      onClick={() => setLocation("/")}
+                      onClick={() => setLocation('/')}
                     >
                       <img
                         src={item.book.coverImage}
@@ -76,7 +76,7 @@ export function ShoppingCart() {
                       <div>
                         <button
                           className="font-semibold line-clamp-2 text-left hover:underline cursor-pointer bg-transparent border-0 p-0 w-full"
-                          onClick={() => setLocation("/")}
+                          onClick={() => setLocation('/')}
                         >
                           {item.book.title}
                         </button>
@@ -136,7 +136,7 @@ export function ShoppingCart() {
                   size="lg"
                   className="w-full"
                   data-testid="button-checkout"
-                  onClick={() => setLocation("/checkout")}
+                  onClick={() => setLocation('/checkout')}
                 >
                   Proceed to Checkout
                 </Button>
